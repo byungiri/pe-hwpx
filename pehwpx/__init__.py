@@ -1,4 +1,4 @@
-"""pe-hwpx: 정보통신기술사 업무 문서용 HWPX 처리 도구.
+"""pe-hwpx: 기술사 업무 문서용 HWPX 처리 도구.
 
 OWPML(KS X 6101) 공개 규격과 한글에서 저장한 실제 문서 분석을 근거로 독자 작성.
 Copyright (c) 2026 기술법인 진성 (Jinseong Technical Corporation). MIT License.
