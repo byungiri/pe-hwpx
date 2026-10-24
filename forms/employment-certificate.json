@@ -1,0 +1,23 @@
+{
+  "form_id": "employment-certificate",
+  "title": "재직증명서",
+  "desc": "표(소속·직위·성명·생년월일·입사년월일·주민등록번호·본적·주소) + 하단 병합 셀(용도·발급일·상호명·대표·직인) 형식의 재직증명서",
+  "match": {
+    "labels": ["소속", "직위", "성명", "생년월일", "입사년월일", "주소"],
+    "phrases": ["재직증명서", "상기와같이재직하고있음을증명함"]
+  },
+  "fields": {
+    "용도":       {"at": "item:용도", "required": true, "desc": "제출처와 용도 (예: ○○ 평가위원 등록 제출용)"},
+    "발급일":     {"at": "contains:상기와 같이", "date": true, "default": "today", "desc": "발급일 (기본: 오늘)"},
+    "소속":       {"at": "label:소속", "from": "office.name", "desc": "표 칸"},
+    "직위":       {"at": "label:직위", "from": "person.title", "desc": "표 칸"},
+    "성명":       {"at": "label:성명", "from": "person.name_spaced", "desc": "표 칸 (양식은 '이 병 일'처럼 띄어 씀)"},
+    "생년월일":   {"at": "label:생년월일", "desc": "표 칸"},
+    "입사년월일": {"at": "label:입사년월일", "desc": "표 칸"},
+    "주민등록번호": {"at": "label:주민등록번호", "desc": "표 칸 — 사용자가 직접 제공한 경우에만 기입"},
+    "본적":       {"at": "label:본적", "desc": "표 칸"},
+    "주소":       {"at": "label:주소", "from": "office.address", "desc": "표 칸"},
+    "상호명":     {"at": "item:상호명", "from": "office.name", "desc": "하단 문단 항목"},
+    "대표":       {"at": "item:대표", "from": "office.ceo_spaced", "desc": "하단 문단 항목"}
+  }
+}
