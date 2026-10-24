@@ -1,0 +1,18 @@
+{
+  "seal": {
+    "files": ["도장1.png"],
+    "width_mm": 15, "rotate_deg": 4, "jitter_mm": 0.5
+  },
+  "signature": {
+    "files": ["서명1.png", "서명2.png", "서명3.png"],
+    "width_mm": 24, "rotate_deg": 3, "jitter_mm": 0.8
+  },
+  "name": {
+    "files": ["성명1.png", "성명2.png"],
+    "width_mm": 20, "rotate_deg": 2, "jitter_mm": 0.8
+  },
+  "check": {
+    "files": ["체크1.png", "체크2.png", "체크3.png"],
+    "width_mm": 6, "rotate_deg": 10, "jitter_mm": 1.2, "scale_pct": 10
+  }
+}

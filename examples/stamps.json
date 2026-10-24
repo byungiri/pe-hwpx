@@ -1,0 +1,7 @@
+{"stamps": [
+  {"image": "@check", "near": "□ 기타", "on": "□"},
+  {"image": "@seal", "near": "(인)"},
+  {"image": "@check", "near": "동의 □", "on": "□", "nth": 1, "jitter_mm": 0.2, "rotate_max_deg": 5, "dx_mm": 0.4},
+  {"image": "@check", "near": "동의 □", "on": "□", "nth": 2, "jitter_mm": 0.2, "rotate_max_deg": 5, "dx_mm": 0.4},
+  {"image": "@signature", "near": "(서명)"}
+]}
