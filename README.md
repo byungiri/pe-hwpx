@@ -3,7 +3,7 @@
 정보통신기술사 사무소의 정형 문서(평가·자문위원 신청서, 재직증명서, 기술자문 의견서, 감리 보고서, 공문)를
 한글 HWPX 양식 그대로 다루기 위한 Claude 스킬입니다. 기술법인 진성이 독자 설계·작성했습니다.
 
-## 현재 상태: v0.9.1 (분석·채움·반복행·양식맵·이미지 배치·추출·개조식 작성·공문 검사·검증)
+## 현재 상태: v0.9.2 (분석·채움·반복행·양식맵·이미지 배치·추출·개조식 작성·공문 검사·검증)
 
 | 단계 | 내용 | 상태 |
 | --- | --- | --- |
@@ -12,6 +12,7 @@
 | 2 | 양식맵: 항목 이름 등록, 첨부 양식 자동 대조, 이름=값 작성 (내장: 재직증명서) | 완료 |
 | 2 | 서명란 자리 채움(slot), 칸 폭 맞춤(fit), 견본 안내 글자색 해제, 빈칸 연도 날짜('20  .   .   .') | 완료 |
 | 2 | 직인·서명·체크 이미지 배치 (한글 PDF 실측 좌표 / 추정), 역할 이름(@seal 등), 이미지 돌려쓰기·손 느낌 흔들림·배경 투명화 | 완료 |
+| 2 | 이미지 준비: 서명·체크·도장 사진 → 배경 투명·하나씩 분리·assets.json 생성 (`assets make`, [docs/ASSETS.md](docs/ASSETS.md)) | 완료 |
 | 2+ | 반복행(행 늘리기 grow·별지 annex·줄이기 trim, 세로 병합·순번 자동 조정) | 완료 |
 | 3 | 텍스트 추출(마크다운, 표 구조·메모·각주·자동 번호 유지) | 완료 |
 | 3 | 개조식 본문 작성(보고서 □○-·, 공문 1.가.1)가), 내어쓰기, 기호 폭 실측) | 완료 |
@@ -42,7 +43,7 @@
 | --- | --- |
 | 분석·채우기·반복행·양식맵·추출·개조식 작성·공문 검사·검증 | Claude 유료 요금제 + 코드 실행. 클라우드에서 동작(Python, lxml) |
 | HWP → HWPX 변환, 한글 PDF 실측 배치·쪽 수 확인 | Windows PC + 한글(HWP) 설치 + Claude 데스크톱 앱의 PC 연결. `windows/` 의 PowerShell 스크립트 사용 |
-| 직인·서명·체크 이미지 | 사용자 본인의 이미지 폴더와 `assets.json`(역할 정의). 이미지는 스킬에 넣지 않습니다 |
+| 직인·서명·체크 이미지 | 사용자 본인의 이미지 폴더와 `assets.json`(역할 정의). **준비 방법: [docs/ASSETS.md](docs/ASSETS.md)** — 종이에 쓴 서명·체크 사진을 올리면 자동 정리. 이미지는 스킬에 넣지 않습니다 |
 
 ## 개인정보
 
@@ -64,6 +65,7 @@ python -m pehwpx fill 신청서.hwpx 채움.json --data 프로필.json -o 결과
 python -m pehwpx match 재직증명서.hwpx
 python -m pehwpx make 재직증명서.hwpx --set "용도=○○ 제출용" -o 재직증명서_○○.hwpx
 python -m pehwpx register 새양식.hwpx -o forms/새양식.json --id new-form --title 새양식
+python -m pehwpx assets make 서명사진.jpg --role signature -o 도장폴더   # 이미지 준비(docs/ASSETS.md)
 python -m pehwpx stamp 동의서.hwpx 배치.json --assets 도장폴더 --pdf 동의서.pdf -o 동의서_날인.hwpx
 python -m pehwpx extract 과업지시서.hwpx -o 과업지시서.md
 python -m pehwpx write 검토의견서.hwpx 의견.txt --style gonmun --replace "가. " --to "나. " -o 검토의견서_작성.hwpx
@@ -81,6 +83,7 @@ python tests/gate7.py <HWPX 폴더>      # 텍스트 추출 자가 시험
 python tests/gate8.py <HWPX 폴더>      # 개조식 본문 작성 자가 시험
 python tests/gate9.py <HWPX 폴더>      # 공문 규칙 검사 자가 시험
 python tests/gate10.py <HWPX 폴더>     # 반복행 병합 칸 높이·처리 순서, PDF 문구 찾기 회귀 시험
+python tests/gate11.py                 # 이미지 준비(합성 사진) 시험
 ```
 
 Claude에게는 "이 양식 분석해 줘", "재직증명서, ○○ 제출용으로 오늘 날짜 발급해 줘"처럼 요청하면 됩니다.
