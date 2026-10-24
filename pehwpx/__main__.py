@@ -97,6 +97,28 @@ def order_items(items: list[dict]) -> list[dict]:
     return plain + sorted(rows, key=key)
 
 
+def cmd_assets(a) -> int:
+    from . import assets as A
+    try:
+        if a.action == "make":
+            if not a.role or not a.output:
+                _out("assets make 는 --role 과 -o <폴더> 가 필요함")
+                return 2
+            r = A.make(a.files, a.role, a.output, a.max)
+            _out(f"결과 폴더: {a.output}  ({A.ROLE_KO[r['role']]} {len(r['saved'])}개 추가, 합계 {r['total']}개)")
+            _out("| 저장 파일 | 원본 | 크기(px) |\n| --- | --- | --- |")
+            for name, src, size in r["saved"]:
+                _out(f"| {name} | {src} | {size[0]}x{size[1]} |")
+            _out(f"역할 정의: {r['assets']} — 크기(width_mm)·흔들림은 이 파일에서 조정")
+            return 0
+        bad = A.check(a.files[0])
+        _out("점검 결과: 이상 없음" if not bad else "점검 결과:\n" + "\n".join("  - " + b for b in bad))
+        return 0 if not bad else 1
+    except A.AssetError as e:
+        _out(f"실패: {e}")
+        return 1
+
+
 def run_fill(src: str, items: list[dict], data: dict | None, out: str) -> int:
     pkg = HwpxPackage.open(src)
     f = Filler(pkg)
@@ -491,6 +513,7 @@ def main(argv=None) -> int:
     p = sp.add_parser("make"); p.add_argument("file"); p.add_argument("--map"); p.add_argument("--maps", nargs="*"); p.add_argument("--set", action="append"); p.add_argument("--data"); p.add_argument("-o", "--output"); p.set_defaults(fn=cmd_make)
     p = sp.add_parser("fields"); p.add_argument("map"); p.set_defaults(fn=cmd_fields)
     p = sp.add_parser("stamp"); p.add_argument("file"); p.add_argument("spec_file"); p.add_argument("--pdf"); p.add_argument("--assets"); p.add_argument("--seed", type=int); p.add_argument("-o", "--output"); p.set_defaults(fn=cmd_stamp)
+    p = sp.add_parser("assets"); p.add_argument("action", choices=["make", "check"]); p.add_argument("files", nargs="+"); p.add_argument("--role", choices=["seal", "signature", "check", "name"]); p.add_argument("-o", "--output"); p.add_argument("--max", type=int); p.set_defaults(fn=cmd_assets)
     p = sp.add_parser("render-copy"); p.add_argument("file"); p.add_argument("-o", "--output"); p.set_defaults(fn=cmd_render_copy)
     p = sp.add_parser("extract"); p.add_argument("file"); p.add_argument("-o", "--output"); p.add_argument("--tables", choices=["auto", "md", "html"], default="auto"); p.add_argument("--headers", action="store_true"); p.set_defaults(fn=cmd_extract)
     p = sp.add_parser("write"); p.add_argument("file"); p.add_argument("body"); p.add_argument("--style", choices=["report", "gonmun"], default="report")
