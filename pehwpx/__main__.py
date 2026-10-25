@@ -146,6 +146,13 @@ def run_fill(src: str, items: list[dict], data: dict | None, out: str) -> int:
         b = r.before.replace("\n", " ⏎ ").replace("|", "／")
         aft = r.after.replace("\n", " ⏎ ").replace("|", "／")
         _out(f"| `{r.spec}` | {r.kind} | `{r.where}` | {b[:40]} | {aft[:40]} |")
+    fitted = [r for r in f.applied if "pt" in r.kind or "줄(칸 높이 안)" in r.kind or "축약 검토" in r.kind]
+    if fitted:
+        _out("")
+        _out("칸 폭 맞춤 결과(확인 권장):")
+        for r in fitted:
+            note = r.kind.split("+", 1)[-1].strip() if "+" in r.kind else r.kind
+            _out(f"- `{r.where}` {note}" + ("  ← 문구를 줄이거나 \\n 으로 줄 나눌 위치 지정 권장" if "축약 검토" in r.kind else ""))
     for r in f.applied:
         for rec in getattr(r, "overflow", None) or []:
             _out(f"- 별지 대상({r.spec}): " + " / ".join(map(str, rec.values() if isinstance(rec, dict) else rec)).replace("\n", " "))

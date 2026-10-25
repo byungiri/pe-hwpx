@@ -54,7 +54,7 @@ def run(path: str) -> list[str]:
         done += 1
     if narrow:
         r = f.apply({"at": narrow, "value": "정보통신기술사정보통신", "fit": True})
-        assert "pt" in r.kind or "줄바꿈" in r.kind, r.kind
+        assert "pt" in r.kind or "줄바꿈" in r.kind or "칸 높이 안" in r.kind, r.kind
         out.append(f"fit:{narrow}:{r.kind}")
         done += 1
     f.finish()

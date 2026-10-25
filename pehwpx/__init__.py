@@ -4,7 +4,7 @@ OWPML(KS X 6101) 공개 규격과 한글에서 저장한 실제 문서 분석을
 Copyright (c) 2026 기술법인 진성 (Jinseong Technical Corporation). MIT License.
 """
 
-__version__ = "0.9.2"
+__version__ = "0.9.3"
 
 NS = {
     "hp": "http://www.hancom.co.kr/hwpml/2011/paragraph",

@@ -14,9 +14,13 @@
                                                                   라벨 뒤 공백 폭 안에 값을 넣고 남은 폭은 공백으로 유지
   {"rows": "s0/tbl[3]/r[17]", "cols": [1, 2, 5, 8], "data": [[...], ...]}  반복행 (rows.py 참조)
   "value" 대신 "from": "person.name" 을 쓰면 --data JSON 에서 값을 읽는다.
-  셀 채움에 "fit": true (또는 채움 파일 최상위 "fit": true) 를 주면, 값이 칸 폭을 넘을 때 같은 글꼴로
-  글자 크기를 1pt씩 줄이고(최소 10pt, "fit_min_pt" 로 변경) 그래도 넘치면 자간을 최대 -10%까지 좁혀 한 줄에
-  맞춘다. 그래도 안 되면 원래 크기로 두어 줄바꿈되게 한다(줄을 나눌 위치는 값에 \n 으로 지정 가능).
+  셀 채움에 "fit": true (또는 채움 파일 최상위 "fit": true) 를 주면, 값이 칸 폭을 넘을 때 다음 순서로 맞춘다(v0.9.3).
+    1) 칸 높이에 여유가 있어 원래 크기로 줄바꿈해도 칸 안에 들어가면 글자를 줄이지 않는다("fit_wrap": false 로 끔).
+    2) 원래 크기 그대로 자간만 -2%씩 최대 -10%까지 좁힌다.
+    3) 그래도 넘치면 0.5pt씩 줄이되 하한은 원래 크기의 90%("fit_min_ratio")와 10pt("fit_min_pt") 중 큰 값.
+       각 크기에서 자간을 함께 좁혀 축소 폭을 최소로 한다.
+    4) 하한까지 줄여도 안 되면 원래 크기로 두어 줄바꿈되게 하고 결과에 '문구 축약 검토'로 표시한다
+       (줄을 나눌 위치는 값에 \n 으로 지정 가능).
   필요한 글자모양은 header 끝에 추가하며, 기존 글자모양은 바꾸지 않는다.
   값을 \n 으로 여러 줄로 나눈 셀은 줄 간격을 "line_pct"(기본 115%, fit 사용 시 자동)로 좁혀 두 줄 사이가
   벌어지지 않게 한다. 문단모양도 header 끝에 변형을 추가하는 방식이다.
@@ -142,6 +146,9 @@ def _fmt_like(orig: str, n: int, pad: bool = False) -> str:
 
 
 # ================================================================ 채움기
+FIT_KEYS = ("fit", "fit_min_pt", "fit_min_ratio", "fit_wrap")
+
+
 class Filler:
     def __init__(self, pkg: HwpxPackage):
         self.pkg = pkg
@@ -187,7 +194,8 @@ class Filler:
             res.kind += " +안내색 해제"
         if (item.get("fit") and tgt.kind == "cell" and value
                 and not any(k in item for k in ("slot", "after", "date", "check"))):
-            note = self._fit(tgt.el, float(item.get("fit_min_pt", 10)))
+            note = self._fit(tgt.el, float(item.get("fit_min_pt", 10)),
+                             float(item.get("fit_min_ratio", 0.9)), bool(item.get("fit_wrap", True)))
             if note:
                 res.kind += f" +{note}"
         if tgt.kind == "cell" and "\n" in value and (item.get("fit") or "line_pct" in item):
@@ -248,7 +256,7 @@ class Filler:
             note = f"-{cap - n}행 삭제"
         n_after = n if (n > cap and mode == "grow") or (0 < n < cap and item.get("trim")) else cap
         # 칸 채우기 (일반 셀 채움과 같은 규칙: 서식 승계·안내색 해제·fit)
-        common = {k: item[k] for k in ("fit", "fit_min_pt", "line_pct") if k in item}
+        common = {k: item[k] for k in FIT_KEYS + ("line_pct",) if k in item}
         filled = 0
         for i, rec in enumerate(recs):
             pairs = ([(col, rec.get(key, "")) for key, col in cols.items()] if keyed and isinstance(rec, dict)
@@ -380,15 +388,34 @@ class Filler:
         self.pkg.touch(name)
         return nid
 
-    def _fit(self, tc, min_pt: float) -> str | None:
-        """한 줄에 맞추기: 1pt씩 줄이고(최소 min_pt), 그래도 넘치면 자간을 -2%씩 최대 -10%까지.
-        그래도 넘치면 원래 크기로 두어 두 줄로 자연스럽게 넘기게 한다(작은 글자 두 줄 방지)."""
+    def _line_pct(self, p) -> int:
+        """문단의 줄 간격(%) — 고정값 등 비율이 아니면 160 으로 본다."""
+        name = next(n for n in self.pkg.names() if n.lower().endswith("header.xml"))
+        root = self.pkg.xml(name).getroot()
+        pid = p.get("paraPrIDRef")
+        for pp in root.iter(q("hh", "paraPr")):
+            if pp.get("id") == pid:
+                for ls in pp.iter(q("hh", "lineSpacing")):
+                    if ls.get("type", "PERCENT") == "PERCENT":
+                        return int(ls.get("value", 160))
+                break
+        return 160
+
+    def _fit(self, tc, min_pt: float, min_ratio: float = 0.9, wrap: bool = True) -> str | None:
+        """칸 폭 맞춤(v0.9.3). 순서: ① 칸 높이 안 줄바꿈 → ② 원래 크기에서 자간만(-2%씩, 최대 -10%)
+        → ③ 0.5pt씩 축소(하한 = max(min_pt, 원래 크기 × min_ratio)) + 자간 → ④ 불가 시 원래 크기로 줄바꿈.
+        실사용 의견(2026-10-25): 글자를 너무 작게 줄여 다시 편집해야 했음 → 줄바꿈·자간 우선, 축소 하한."""
         sz, mg = tc.find(q("hp", "cellSz")), tc.find(q("hp", "cellMargin"))
-        avail = int(sz.get("width")) - (int(mg.get("left", 141)) + int(mg.get("right", 141)) if mg is not None else 282)
+        lr = (int(mg.get("left", 141)) + int(mg.get("right", 141))) if mg is not None else 282
+        tb = (int(mg.get("top", 141)) + int(mg.get("bottom", 141))) if mg is not None else 282
+        avail = int(sz.get("width")) - lr
+        avail_h = int(sz.get("height", 0)) - tb
         limit = avail * 0.95
         cps = self._charprs()
+        ps = cell_paragraphs(tc)
         notes = []
-        for p in cell_paragraphs(tc):
+        spacings = (-2, -4, -6, -8, -10)
+        for p in ps:
             runs = [r for r in p.findall(T_RUN) if any((t.text or "") for t in r.findall(T_T))]
             if len(runs) != 1:
                 continue
@@ -401,24 +428,37 @@ class Filler:
             ratio_el = src.find(q("hh", "ratio"))
             ratio = int(ratio_el.get("hangul", 100)) if ratio_el is not None else 100
             text = paragraph_text(p)
-            if self._est_width(text, h0, ratio) <= limit:
+            w0 = self._est_width(text, h0, ratio)
+            if w0 <= limit:
                 continue
+            # ① 칸 높이 안에서 원래 크기로 줄바꿈 가능하면 그대로 둔다(문단 1개인 칸만)
+            if wrap and len(ps) == 1 and avail_h > 0:
+                lines = -(-w0 // limit)  # 올림
+                if lines * h0 * self._line_pct(p) / 100 <= avail_h:
+                    notes.append(f"원래 크기 {int(lines)}줄(칸 높이 안)")
+                    continue
+            floor = max(int(min_pt * 100), int(-(-h0 * min_ratio // 50)) * 50)
             pick = None
+            # ② 원래 크기에서 자간만
+            for sp in spacings:
+                if w0 * (1 + sp / 100) <= limit:
+                    pick = (h0, sp)
+                    break
+            # ③ 0.5pt씩 축소(하한까지), 각 크기에서 필요한 최소 자간
             h = h0
-            while h - 100 >= int(min_pt * 100) and pick is None:
-                h -= 100
-                if self._est_width(text, h, ratio) <= limit:
-                    pick = (h, 0)
-            if pick is None:
-                for sp in (-2, -4, -6, -8, -10):
-                    if self._est_width(text, h, ratio) * (1 + sp / 100) <= limit:
+            while pick is None and h - 50 >= floor:
+                h -= 50
+                w = self._est_width(text, h, ratio)
+                for sp in (0,) + spacings:
+                    if w * (1 + sp / 100) <= limit:
                         pick = (h, sp)
                         break
             if pick is None:
-                notes.append("한 줄 불가, 원래 크기로 줄바꿈")
+                notes.append(f"한 줄 불가(하한 {floor / 100:g}pt), 원래 크기로 줄바꿈 — 문구 축약 검토")
                 continue
             run.set("charPrIDRef", self._charpr_variant(cid, pick[0], pick[1]))
-            notes.append(f"{pick[0] / 100:g}pt" + (f" 자간{pick[1]}%" if pick[1] else ""))
+            size = f"{pick[0] / 100:g}pt" if pick[0] != h0 else f"{h0 / 100:g}pt 유지"
+            notes.append(size + (f" 자간{pick[1]}%" if pick[1] else ""))
         return ", ".join(notes) or None
 
     # ------------------------------------------------------------ 여러 줄 셀 줄 간격
@@ -630,7 +670,7 @@ def load_map(path: str) -> list[dict]:
     items = doc.get("fill", doc) if isinstance(doc, dict) else doc
     if not isinstance(items, list):
         raise FillError("채움 파일 형식: {\"fill\": [ {...}, ... ]}")
-    if isinstance(doc, dict):  # 최상위 공통 옵션(fit, fit_min_pt)을 각 항목 기본값으로
-        common = {k: doc[k] for k in ("fit", "fit_min_pt") if k in doc}
+    if isinstance(doc, dict):  # 최상위 공통 옵션(fit 관련)을 각 항목 기본값으로
+        common = {k: doc[k] for k in FIT_KEYS if k in doc}
         items = [{**common, **it} for it in items]
     return items
